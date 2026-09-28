@@ -1,0 +1,36 @@
+# Calico BGP configuration (reference/future use)
+# This cluster currently uses VXLAN mode, not BGP.
+# BGP is documented here for reference — it was evaluated during the
+# Cilium migration attempt but not implemented due to homelab constraints.
+#
+# To switch from VXLAN to BGP:
+# 1. All nodes must be on the same L2 segment (they are — same switch)
+# 2. Update IPPool to set vxlanMode: Never and ipipMode: Never
+# 3. Apply BGPConfiguration to enable full-mesh peering
+# 4. Restart Calico node DaemonSet
+#
+# BGP mode eliminates VXLAN encapsulation overhead (~50 bytes per packet).
+# On a homelab with 1Gbps links, the difference is negligible.
+# On production clusters with high PPS workloads, BGP mode is preferred.
+---
+apiVersion: projectcalico.org/v3
+kind: BGPConfiguration
+metadata:
+  name: default
+spec:
+  # Full mesh BGP — every Calico node peers with every other
+  # Works for small clusters (3 nodes). For large clusters, use route reflectors.
+  nodeToNodeMeshEnabled: true
+  asNumber: 64512
+  serviceClusterIPs:
+    - cidr: 10.96.0.0/12
+  serviceLoadBalancerIPs: []
+---
+# Example BGPPeer for peering with an external router (not used on this cluster)
+# apiVersion: projectcalico.org/v3
+# kind: BGPPeer
+# metadata:
+#   name: router-peer
+# spec:
+#   peerIP: 192.168.1.1
+#   asNumber: 64511

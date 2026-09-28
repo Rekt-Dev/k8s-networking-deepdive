@@ -1,0 +1,24 @@
+# Calico IPPool configuration
+# Defines the pod IP address range for the cluster.
+# Matches the podSubnet configured in kubeadm init (10.244.0.0/16).
+#
+# VXLAN mode: Calico encapsulates pod traffic in VXLAN frames.
+# This works without BGP router configuration — suitable for homelab.
+# BGP mode is more efficient (no encapsulation overhead) but requires
+# router support or direct L2 connectivity between nodes.
+#
+# blockSize: /26 = 64 IPs per node. With 3 nodes, uses 192 of the /16.
+---
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: default-ipv4-ippool
+spec:
+  cidr: 10.244.0.0/16
+  ipipMode: Never
+  vxlanMode: Always
+  natOutgoing: true
+  # Disable BGP route advertisement for this pool — VXLAN only
+  disabled: false
+  blockSize: 26
+  nodeSelector: all()

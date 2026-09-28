@@ -1,0 +1,44 @@
+# DNS debugging pod
+# Quick-launch pod with full network tooling for DNS troubleshooting.
+# Delete after use — this pod has broader network access for diagnostic purposes.
+#
+# Usage:
+#   kubectl apply -f dns/dns-debug.yaml
+#   kubectl exec -it dns-debug -- /bin/sh
+#
+# Common debug commands inside the pod:
+#   nslookup kubernetes.default.svc.cluster.local
+#   nslookup <service-name>.<namespace>.svc.cluster.local
+#   dig @10.96.0.10 kubernetes.default.svc.cluster.local
+#   cat /etc/resolv.conf
+#   nslookup google.com  (test external DNS)
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dns-debug
+  namespace: default
+  labels:
+    purpose: debugging
+spec:
+  containers:
+    - name: debug
+      image: nicolaka/netshoot:latest
+      command: ["sleep", "3600"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+          add: ["NET_RAW"]  # Required for ping
+  restartPolicy: Never
+  # Remove after use
+  # kubectl delete pod dns-debug

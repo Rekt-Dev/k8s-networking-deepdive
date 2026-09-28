@@ -1,0 +1,70 @@
+# Advanced egress NetworkPolicy examples
+# These demonstrate patterns beyond basic allow/deny:
+# - CIDR-based egress (allow traffic to specific external IPs)
+# - Port-specific egress to external services
+# - Block access to cloud metadata endpoint (not cloud, but good practice)
+---
+# Allow egress to a specific external monitoring service
+# Use case: application pods that send metrics to an external Prometheus pushgateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-external-monitoring
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      egress-monitoring: allowed
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.0/24  # Homelab network range
+      ports:
+        - protocol: TCP
+          port: 9091  # Prometheus pushgateway
+---
+# Allow egress to NFS storage server
+# Pods that need to write to the NAS (192.168.1.50)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-nfs
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      storage: nfs
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.50/32
+      ports:
+        - protocol: TCP
+          port: 2049
+        - protocol: UDP
+          port: 2049
+---
+# Block egress to cloud metadata endpoint
+# Not applicable to a homelab (no cloud IMDS), but essential in cloud environments.
+# An application with SSRF vulnerability could use this endpoint to steal
+# cloud provider credentials. Block it at the network layer as defense in depth.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: block-metadata-endpoint
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32  # AWS/GCP/Azure IMDS endpoint
+              - 169.254.170.2/32    # ECS task metadata endpoint

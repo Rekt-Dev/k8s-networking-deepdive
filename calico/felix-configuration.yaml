@@ -1,0 +1,41 @@
+# Calico Felix configuration
+# Felix is the per-node agent that programs iptables/eBPF rules.
+# These settings tune Felix behavior for this cluster.
+#
+# Changes to FelixConfiguration take effect immediately — no restart required.
+---
+apiVersion: projectcalico.org/v3
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  # Log level — info is appropriate for production. Debug generates excessive I/O.
+  logSeverityScreen: Info
+
+  # Enable iptables backend (default). eBPF mode would require Cilium instead.
+  dataplaneDriver: iptables
+
+  # Healthcheck endpoint on each node — used by liveness probes
+  healthEnabled: true
+  healthPort: 9099
+
+  # Reduce iptables refresh interval — default 90s is fine for homelab
+  iptablesRefreshInterval: 90s
+
+  # Allow Calico to manage kernel RPF (Reverse Path Filtering) settings
+  # This prevents IP spoofing on pod interfaces
+  rpfStrict: true
+
+  # VXLAN port — must match what kubeadm configured
+  vxlanPort: 4789
+  vxlanVNI: 4096
+
+  # Prometheus metrics from Felix
+  prometheusMetricsEnabled: true
+  prometheusMetricsPort: 9091
+
+  # BPF disabled — using iptables backend
+  bpfEnabled: false
+
+  # Flow logs disabled (not running Tigera commercial)
+  flowLogsEnabled: false

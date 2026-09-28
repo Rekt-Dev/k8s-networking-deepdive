@@ -1,0 +1,60 @@
+# CoreDNS ConfigMap customization
+# Modifies the default CoreDNS Corefile for this cluster.
+# Applied to the kube-system/coredns ConfigMap.
+#
+# Changes from default:
+# 1. Added rewrite rule to resolve internal hostnames via cluster DNS
+# 2. Added forward zone for homelab.local domain to the local DNS server
+# 3. Increased TTL for external DNS (reduce upstream queries)
+#
+# Apply:
+#   kubectl apply -f dns/custom-coredns.yaml
+#   kubectl rollout restart deployment/coredns -n kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+          lameduck 5s
+        }
+        ready
+
+        # Kubernetes cluster DNS
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+          pods insecure
+          fallthrough in-addr.arpa ip6.arpa
+          ttl 30
+        }
+
+        # Forward homelab.local to the local DNS server (192.168.1.1)
+        # This allows pods to resolve homelab hostnames (NAS, router, etc.)
+        forward homelab.local 192.168.1.1 {
+          max_concurrent 10
+        }
+
+        # Prometheus metrics from CoreDNS
+        prometheus :9153
+
+        # Forward all other queries to upstream DNS
+        forward . 1.1.1.1 8.8.8.8 {
+          max_concurrent 1000
+          prefer_udp
+          health_check 5s
+        }
+
+        cache 30 {
+          # Negative TTL — don't cache NXDOMAIN for too long
+          # Useful when testing new deployments
+          denial 5
+        }
+
+        loop
+        reload
+        loadbalance
+    }
